@@ -1,4 +1,7 @@
+"use client"; // ဒီ Line လေးကို အပေါ်ဆုံးမှာ ထည့်ပါ
+
 import Link from 'next/link';
+// ... ကျန်တဲ့ import များ
 import { ShieldCheck, ArrowRight, LayoutPanelTop, MonitorPlay } from 'lucide-react';
 
 export default function LandingPage() {
