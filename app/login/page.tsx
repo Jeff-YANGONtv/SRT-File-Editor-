@@ -1,106 +1,123 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Lock, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { ShieldCheck, Lock, Mail, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+
+// Supabase Client Initialization
+// ⚠️ Vercel Environment Variables မှာ ဒီ Key တွေ ထည့်ထားဖို့ လိုပါတယ်
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function LoginPage() {
-  const loginRef = useRef<HTMLDivElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    // အရင်ရှိနေတဲ့ widget အဟောင်းကို အမြဲရှင်းထုတ်ပေးပါ
-    if (loginRef.current) {
-      loginRef.current.innerHTML = "";
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setErrorMsg(error.message);
+        setLoading(false);
+      } else if (data.user) {
+        // Login အောင်မြင်ရင် User Info ကို localStorage သိမ်းပြီး Edit Page သွားမယ်
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = '/edit';
+      }
+    } catch (err) {
+      setErrorMsg("Connection error. Please check your network.");
+      setLoading(false);
     }
-
-    const script = document.createElement('script');
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    
-    const botUsername = "srtfilecollectbot"; 
-    
-    script.setAttribute('data-telegram-login', botUsername);
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-radius', '14');
-    
-    // Approval ကျလာစေဖို့အတွက် callback အပြင် auth-url ကိုပါ တွဲသုံးပါမယ်
-    // အောက်က URL သည် အစ်ကို့ Vercel URL ဖြစ်ရပါမယ်
-    script.setAttribute('data-auth-url', "https://srt-file-editor-tugh.vercel.app/edit");
-    
-    // Bot ထံမှ message ပို့ခွင့်တောင်းဆိုခြင်း (ဒါပါမှ Approval ပိုကျလွယ်ပါတယ်)
-    script.setAttribute('data-request-access', 'write');
-    
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.async = true;
-
-    if (loginRef.current) {
-      loginRef.current.appendChild(script);
-      // Widget ပေါ်လာဖို့ ခဏစောင့်ပြီးမှ Opacity ပေးမယ်
-      setTimeout(() => setIsLoaded(true), 600);
-    }
-
-    // Auth callback function
-    (window as any).onTelegramAuth = (user: any) => {
-      localStorage.setItem('user', JSON.stringify(user));
-      window.location.href = '/edit';
-    };
-
-    return () => {
-      if (loginRef.current) loginRef.current.innerHTML = "";
-    };
-  }, []);
+  };
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden">
-
-      {/* Background Glows */}
-      <div className="absolute top-[-5%] left-[-5%] w-[500px] h-[500px] bg-cyan-900/15 rounded-full blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-blue-900/10 rounded-full blur-[130px] pointer-events-none" />
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      
+      {/* Visual Enhancements (Glows) */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
-        <div className="bg-slate-900/50 backdrop-blur-2xl p-8 rounded-[40px] border border-white/6 shadow-2xl shadow-black/60 space-y-7">
-
+        <div className="bg-slate-900/40 backdrop-blur-3xl p-10 rounded-[45px] border border-white/5 shadow-2xl space-y-8">
+          
+          {/* Logo & Header */}
           <div className="text-center space-y-4">
             <div className="relative inline-block">
-              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[28px] flex items-center justify-center border border-white/8 shadow-inner mx-auto">
-                <img
-                  src="/icons/app-icon.png"
-                  alt="Yangon TV Logo"
-                  className="w-14 h-14 object-contain"
-                />
+              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[28px] flex items-center justify-center border border-white/10 shadow-xl mx-auto">
+                <img src="/icons/app-icon.png" alt="Logo" className="w-12 h-12 object-contain" />
               </div>
-              <div className="absolute -bottom-2 -right-2 bg-cyan-500 p-1.5 rounded-xl border-[3px] border-[#020617]">
+              <div className="absolute -bottom-1 -right-1 bg-cyan-500 p-1.5 rounded-xl border-[3px] border-[#020617]">
                 <ShieldCheck className="text-white" size={14} />
               </div>
             </div>
-
-            <div className="space-y-1 pt-1">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Staff Access</h1>
-              <p className="text-slate-500 text-xs font-medium uppercase tracking-widest flex items-center justify-center gap-1.5">
-                <Lock size={11} className="text-cyan-500" /> Authorized Personnel Only
-              </p>
+            <div className="space-y-1">
+              <h1 className="text-2xl font-black text-white tracking-tight">Production Lab</h1>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em]">Authorized Personnel Only</p>
             </div>
           </div>
 
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="relative group">
+              <Mail className="absolute left-4 top-4 text-slate-500 group-focus-within:text-cyan-500 transition-colors" size={18} />
+              <input 
+                type="email" 
+                placeholder="Staff Email" 
+                required
+                className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-cyan-500/50 transition-all text-sm text-white"
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            
+            <div className="relative group">
+              <Lock className="absolute left-4 top-4 text-slate-500 group-focus-within:text-cyan-500 transition-colors" size={18} />
+              <input 
+                type="password" 
+                placeholder="Access Key" 
+                required
+                className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-cyan-500/50 transition-all text-sm text-white"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
 
-          {/* Telegram Login Button Container */}
-          <div className="flex flex-col items-center gap-5 py-2 min-h-[60px]">
-            <div
-              ref={loginRef}
-              className={`transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
-            />
-            <p className="text-slate-700 text-[11px]">Securely powered by Telegram</p>
-          </div>
+            {/* Error Message Display */}
+            {errorMsg && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-3 rounded-xl text-red-400 text-xs font-bold">
+                <AlertCircle size={14} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
 
-          <p className="text-center text-slate-700 text-[11px] leading-relaxed">
-            By logging in, you agree to Yangon TV internal security protocols.
-          </p>
-        </div>
+            <button 
+              disabled={loading}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-cyan-900/20 text-white"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <><ShieldCheck size={18} /> Verify Identity <ArrowRight size={18} /></>
+              )}
+            </button>
+          </form>
 
-        <div className="mt-6 text-center">
-          <button className="text-slate-600 hover:text-cyan-500 text-xs flex items-center gap-1.5 mx-auto transition-colors duration-200">
-            Contact Technical Director <ArrowRight size={11} />
-          </button>
+          <footer className="text-center">
+            <p className="text-slate-600 text-[9px] font-medium tracking-widest uppercase italic leading-relaxed">
+              Security Protocol V2.0 <br/>
+              Yangon TV Technical Department
+            </p>
+          </footer>
         </div>
       </div>
     </div>
