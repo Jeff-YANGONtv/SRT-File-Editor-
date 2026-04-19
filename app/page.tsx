@@ -41,7 +41,7 @@ export default function LandingPage() {
         </div>
 
         <Link
-          href="/login"
+          href="/edit"
           className="group inline-flex items-center gap-3 bg-cyan-500 hover:bg-cyan-400 text-white px-10 py-4 rounded-2xl font-bold text-base transition-all duration-200 shadow-xl shadow-cyan-500/20 active:scale-95"
         >
           Enter Workspace
