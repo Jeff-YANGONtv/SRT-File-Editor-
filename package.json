@@ -1,0 +1,28 @@
+{
+    "name": "yangon-tv-editor",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "next": "latest",
+        "react": "latest",
+        "react-dom": "latest",
+        "subtitle": "^4.2.1",
+        "lucide-react": "latest",
+        "axios": "latest"
+    },
+    "devDependencies": {
+        "typescript": "latest",
+        "@types/node": "latest",
+        "@types/react": "latest",
+        "@types/react-dom": "latest",
+        "tailwindcss": "latest",
+        "postcss": "latest",
+        "autoprefixer": "latest"
+    }
+}
