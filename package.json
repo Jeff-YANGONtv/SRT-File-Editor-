@@ -4,11 +4,12 @@
     "private": true,
     "scripts": {
         "dev": "next dev",
-        "build": "next build --webpack",
+        "build": "next build",
         "start": "next start",
         "lint": "next lint"
     },
     "dependencies": {
+        "@supabase/supabase-js": "^2.42.0",
         "axios": "latest",
         "lucide-react": "latest",
         "next": "latest",
