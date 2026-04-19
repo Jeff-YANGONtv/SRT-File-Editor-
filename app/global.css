@@ -11,7 +11,7 @@ body {
   padding: 0;
 }
 
-/* Scrollbar ကို ပိုလှအောင် (Optional) */
+/* Scrollbar ကို ပိုလှအောင် */
 ::-webkit-scrollbar {
   width: 5px;
 }
