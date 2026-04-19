@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { parseSrt, shiftTime, stringifySrt } from '@/lib/srt-parser';
+import { supabase } from '@/lib/supabase'; // Supabase client ကို import လုပ်ပါ
 import {
   Upload, Clock, Film, Tv, Hash, User,
-  CheckCircle2, Trash2, Eraser, AlertCircle, CloudUpload
+  CheckCircle2, Trash2, Eraser, AlertCircle, CloudUpload, LogOut
 } from 'lucide-react';
 
 export default function EditPage() {
@@ -18,15 +19,31 @@ export default function EditPage() {
   const [title, setTitle] = useState("");
   const [season, setSeason] = useState("");
   const [episode, setEpisode] = useState("");
-  const [editorName, setEditorName] = useState("");
+  const [editorName, setEditorName] = useState("Editor");
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      setEditorName(user.first_name || "Editor");
-    }
+    // Supabase ကနေ လက်ရှိဝင်ထားတဲ့ User ကို စစ်ဆေးမယ်
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Email ရဲ့ ရှေ့ပိုင်းကို နာမည်အဖြစ် သုံးမယ် (ဥပမာ- zin.ko -> ZIN KO)
+        const name = user.email?.split('@')[0].toUpperCase().replace('.', ' ') || "STAFF";
+        setEditorName(name);
+      } else {
+        // User မရှိရင် Login ကို ပြန်ပို့မယ်
+        window.location.href = '/login';
+      }
+    };
+    checkUser();
   }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
+
+  // ... (showToast, handleFileUpload, deleteNode, clearBlankLines logic တွေက အစ်ကို့မူရင်းအတိုင်းပဲ ထားပါတယ်)
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -109,7 +126,7 @@ export default function EditPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-6">
-
+      {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-semibold transition-all ${toast.ok ? 'bg-slate-900 border-cyan-500/30 text-white' : 'bg-slate-900 border-red-500/30 text-red-400'}`}>
           <span className={`w-2 h-2 rounded-full ${toast.ok ? 'bg-cyan-400' : 'bg-red-400'}`} />
@@ -118,7 +135,6 @@ export default function EditPage() {
       )}
 
       <div className="max-w-7xl mx-auto space-y-5">
-
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/50 px-6 py-4 rounded-[28px] border border-white/6 backdrop-blur-xl">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
@@ -132,6 +148,13 @@ export default function EditPage() {
             </div>
           </div>
           <div className="flex gap-2.5 w-full sm:w-auto">
+            <button
+              onClick={handleLogout}
+              className="p-2.5 bg-slate-800 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl border border-white/5 transition-all"
+              title="Sign Out"
+            >
+              <LogOut size={18} />
+            </button>
             <button
               onClick={clearBlankLines}
               className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-95 border border-white/5"
@@ -155,10 +178,10 @@ export default function EditPage() {
           </div>
         </header>
 
+        {/* ... (အစ်ကို့ရဲ့ grid အပိုင်းက မူရင်းအတိုင်းပဲ အောက်မှာ ဆက်ရှိနေပါမယ်) */}
+        
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-
           <aside className="space-y-4">
-
             <div className="bg-slate-900/50 p-5 rounded-[28px] border border-white/6 space-y-4 backdrop-blur-xl">
               <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">Project Details</p>
 
