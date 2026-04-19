@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { parseSrt, shiftTime, stringifySrt } from '@/lib/srt-parser';
-import { 
-  Upload, Save, Clock, Film, Tv, Hash, User, 
-  CheckCircle2, Trash2, Eraser, AlertCircle 
+import {
+  Upload, Clock, Film, Tv, Hash, User,
+  CheckCircle2, Trash2, Eraser, AlertCircle, CloudUpload
 } from 'lucide-react';
 
 export default function EditPage() {
@@ -12,8 +12,8 @@ export default function EditPage() {
   const [offset, setOffset] = useState(0);
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
-  // Metadata States
   const [contentType, setContentType] = useState<"Movie" | "Series">("Movie");
   const [title, setTitle] = useState("");
   const [season, setSeason] = useState("");
@@ -28,7 +28,10 @@ export default function EditPage() {
     }
   }, []);
 
-  // --- Editing Logic ---
+  const showToast = (msg: string, ok = true) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,47 +47,41 @@ export default function EditPage() {
     }
   };
 
-  // တစ်ကြောင်းချင်းစီ ဖျက်ရန်
   const deleteNode = (index: number) => {
-    const updatedNodes = [...nodes];
-    updatedNodes.splice(index, 1);
-    setNodes(updatedNodes);
+    const updated = [...nodes];
+    updated.splice(index, 1);
+    setNodes(updated);
   };
 
-  // စာကြောင်းအလွတ်တွေ (Blank Lines) အကုန် တစ်ချက်တည်းနဲ့ ဖျက်ရန်
   const clearBlankLines = () => {
-    const filtered = nodes.filter(node => 
-      node.type !== 'cue' || (node.type === 'cue' && node.data.text.trim() !== "")
+    const filtered = nodes.filter(
+      (node) => node.type !== 'cue' || node.data.text.trim() !== ""
     );
     setNodes(filtered);
-    alert("စာကြောင်းအလွတ်များအားလုံး ဖျက်ပြီးပါပြီ။");
+    showToast("Blank lines cleared.");
   };
 
   const handleSaveToCloud = async () => {
-    if (!nodes.length) return alert("ဖိုင်အရင်တင်ပါ");
+    if (!nodes.length) return showToast("Please upload a file first.", false);
     setLoading(true);
-
     try {
       const content = stringifySrt(nodes);
       const blob = new Blob([content], { type: 'text/plain' });
-      const finalFileName = contentType === "Series" 
-        ? `${title}_S${season}_E${episode}.srt` 
+      const finalFileName = contentType === "Series"
+        ? `${title}_S${season}_E${episode}.srt`
         : `${title}.srt`;
-      
-      const file = new File([blob], finalFileName);
 
-      // 1. Upload to Telegram via API
+      const file = new File([blob], finalFileName);
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const tgRes = await fetch('/api/upload-to-tg', { method: 'POST', body: formData });
       const tgData = await tgRes.json();
 
       if (tgData.success) {
-        // 2. Save to Google Sheet History
         const sheetData = {
           type: contentType,
-          title: title,
+          title,
           season: contentType === "Series" ? season : "-",
           episode: contentType === "Series" ? episode : "-",
           editor: editorName,
@@ -98,114 +95,138 @@ export default function EditPage() {
           body: JSON.stringify(sheetData)
         });
 
-        alert("Telegram ရော Google Sheet မှာပါ သိမ်းဆည်းပြီးပါပြီ!");
+        showToast("Saved to Telegram and Google Sheets!");
       }
     } catch (error) {
       console.error(error);
-      alert("Error ဖြစ်သွားပါပြီ");
+      showToast("An error occurred. Please try again.", false);
     } finally {
       setLoading(false);
     }
   };
 
+  const cueNodes = nodes.filter((n) => n.type === 'cue');
+
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Header Section */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/40 p-6 rounded-[32px] border border-white/5 backdrop-blur-xl">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Film className="text-white" size={24} />
+    <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-6">
+
+      {toast && (
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-semibold transition-all ${toast.ok ? 'bg-slate-900 border-cyan-500/30 text-white' : 'bg-slate-900 border-red-500/30 text-red-400'}`}>
+          <span className={`w-2 h-2 rounded-full ${toast.ok ? 'bg-cyan-400' : 'bg-red-400'}`} />
+          {toast.msg}
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto space-y-5">
+
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/50 px-6 py-4 rounded-[28px] border border-white/6 backdrop-blur-xl">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
+              <Film className="text-white" size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Yangon TV Editor V2</h1>
-              <p className="text-xs text-slate-500 flex items-center gap-1 uppercase tracking-widest font-semibold">
-                <User size={12} className="text-cyan-500" /> Editor: {editorName}
+              <h1 className="text-base font-bold text-white tracking-tight leading-tight">Yangon TV Editor V2</h1>
+              <p className="text-[11px] text-slate-500 flex items-center gap-1 uppercase tracking-wider font-medium">
+                <User size={10} className="text-cyan-500" /> {editorName}
               </p>
             </div>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
-            <button 
+          <div className="flex gap-2.5 w-full sm:w-auto">
+            <button
               onClick={clearBlankLines}
-              className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-2xl flex items-center justify-center gap-2 transition active:scale-95 border border-white/5"
-              title="Delete All Blank Lines"
+              className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-95 border border-white/5"
             >
-              <Eraser size={18} /> <span className="hidden md:inline">Clear Blanks</span>
+              <Eraser size={16} /> <span className="hidden sm:inline">Clear Blanks</span>
             </button>
-            <button 
+            <button
               onClick={handleSaveToCloud}
               disabled={loading}
-              className="flex-[2] md:flex-none bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white px-8 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-cyan-900/20 font-bold"
+              className="flex-[2] sm:flex-none bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 disabled:text-slate-500 text-white px-7 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all active:scale-95 shadow-lg shadow-cyan-500/20"
             >
-              {loading ? "Saving..." : <><Save size={18} /> Save to Cloud</>}
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <><CloudUpload size={16} /> Save to Cloud</>
+              )}
             </button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
-          {/* Sidebar Controls */}
-          <aside className="space-y-6">
-            <div className="bg-slate-900/40 p-6 rounded-[32px] border border-white/5 space-y-5">
-              <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Project Details</h2>
-              
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+
+          <aside className="space-y-4">
+
+            <div className="bg-slate-900/50 p-5 rounded-[28px] border border-white/6 space-y-4 backdrop-blur-xl">
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">Project Details</p>
+
               <div className="flex bg-slate-950 p-1 rounded-2xl border border-white/5">
-                <button 
+                <button
                   onClick={() => setContentType("Movie")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition ${contentType === "Movie" ? "bg-cyan-600 text-white shadow-md" : "hover:text-white"}`}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${contentType === "Movie" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-500 hover:text-white"}`}
                 >
-                  <Film size={14} /> MOVIE
+                  <Film size={13} /> MOVIE
                 </button>
-                <button 
+                <button
                   onClick={() => setContentType("Series")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition ${contentType === "Series" ? "bg-cyan-600 text-white shadow-md" : "hover:text-white"}`}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${contentType === "Series" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-500 hover:text-white"}`}
                 >
-                  <Tv size={14} /> SERIES
+                  <Tv size={13} /> SERIES
                 </button>
               </div>
 
-              <div className="space-y-3">
-                <input 
+              <div className="space-y-2.5">
+                <input
                   placeholder="Title Name"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-cyan-500/50 outline-none transition"
+                  className="w-full bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500/40 outline-none transition"
                 />
-                
                 {contentType === "Series" && (
                   <div className="flex gap-2">
-                    <input placeholder="SS" value={season} onChange={(e) => setSeason(e.target.value)} className="w-1/2 bg-slate-950 border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-cyan-500/50 outline-none" />
-                    <input placeholder="EP" value={episode} onChange={(e) => setEpisode(e.target.value)} className="w-1/2 bg-slate-950 border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-cyan-500/50 outline-none" />
+                    <input
+                      placeholder="SS"
+                      value={season}
+                      onChange={(e) => setSeason(e.target.value)}
+                      className="w-1/2 bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500/40 outline-none"
+                    />
+                    <input
+                      placeholder="EP"
+                      value={episode}
+                      onChange={(e) => setEpisode(e.target.value)}
+                      className="w-1/2 bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500/40 outline-none"
+                    />
                   </div>
                 )}
               </div>
 
-              <div className="pt-4 border-t border-white/5">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-800 rounded-[24px] cursor-pointer hover:bg-slate-800/20 transition group">
-                  <Upload className="text-slate-500 mb-2 group-hover:text-cyan-500 transition" />
-                  <span className="text-[10px] text-slate-500 text-center px-4 font-medium uppercase tracking-widest leading-relaxed">
-                    {fileName || "Drop SRT File Here"}
+              <div className="pt-1">
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-800 rounded-2xl cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800/20 transition-all group">
+                  <Upload className="text-slate-600 mb-1.5 group-hover:text-cyan-500 transition" size={20} />
+                  <span className="text-[10px] text-slate-600 text-center px-3 font-semibold uppercase tracking-widest leading-relaxed group-hover:text-slate-400 transition">
+                    {fileName || "Upload SRT File"}
                   </span>
                   <input type="file" className="hidden" accept=".srt" onChange={handleFileUpload} />
                 </label>
               </div>
             </div>
 
-            <div className="bg-slate-900/40 p-6 rounded-[32px] border border-white/5">
-              <h2 className="text-[10px] font-bold text-slate-500 mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Clock size={14} /> Global Time Shift
-              </h2>
+            <div className="bg-slate-900/50 p-5 rounded-[28px] border border-white/6 backdrop-blur-xl">
+              <p className="text-[10px] font-bold text-slate-600 mb-3.5 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Clock size={12} /> Time Shift (ms)
+              </p>
               <div className="flex gap-2">
-                <input 
-                  type="number" 
-                  value={offset} 
-                  onChange={(e) => setOffset(parseInt(e.target.value))} 
-                  className="w-full bg-slate-950 border border-white/5 rounded-xl px-4 py-2 text-sm text-cyan-400 font-mono focus:border-cyan-500/50 outline-none"
+                <input
+                  type="number"
+                  value={offset}
+                  onChange={(e) => setOffset(parseInt(e.target.value) || 0)}
+                  className="w-full bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-cyan-400 font-mono focus:border-cyan-500/40 outline-none"
                 />
-                <button 
+                <button
                   onClick={() => setNodes(shiftTime(nodes, offset))}
-                  className="bg-cyan-600 hover:bg-cyan-500 p-3 rounded-xl transition active:scale-90 text-white shadow-lg shadow-cyan-900/20"
+                  className="bg-cyan-500 hover:bg-cyan-400 p-2.5 rounded-xl transition-all active:scale-90 text-white shadow-lg shadow-cyan-500/20"
                 >
                   <CheckCircle2 size={18} />
                 </button>
@@ -213,55 +234,59 @@ export default function EditPage() {
             </div>
           </aside>
 
-          {/* Main Editor Canvas */}
-          <main className="lg:col-span-3 bg-slate-900/20 rounded-[40px] border border-white/5 h-[80vh] flex flex-col overflow-hidden shadow-2xl backdrop-blur-sm">
-            <div className="p-5 border-b border-white/5 bg-slate-900/40 flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Hash size={14} /> Subtitle Timeline
+          <main className="lg:col-span-3 bg-slate-900/30 rounded-[32px] border border-white/5 h-[78vh] flex flex-col overflow-hidden backdrop-blur-sm">
+            <div className="px-5 py-3.5 border-b border-white/5 bg-slate-900/50 flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Hash size={12} /> Subtitle Timeline
               </span>
-              <div className="px-4 py-1.5 bg-cyan-500/10 rounded-full border border-cyan-500/20">
-                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{nodes.filter(n => n.type === 'cue').length} Lines</span>
+              <div className="px-3 py-1 bg-cyan-500/10 rounded-full border border-cyan-500/20">
+                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{cueNodes.length} Lines</span>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-              {nodes.filter(n => n.type === 'cue').map((node, i) => (
-                <div key={i} className="group bg-slate-950/40 p-5 rounded-[24px] border border-white/5 focus-within:border-cyan-500/40 hover:bg-slate-950/60 transition-all duration-300">
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-mono text-slate-600 font-bold">#{i + 1}</span>
-                      <span className="text-[10px] font-mono bg-slate-900 px-3 py-1 rounded-lg border border-white/5 text-slate-400">
-                        {new Date(node.data.start).toISOString().substr(11, 8)} ⮕ {new Date(node.data.end).toISOString().substr(11, 8)}
+            <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
+              {cueNodes.map((node, i) => (
+                <div
+                  key={i}
+                  className="group bg-slate-950/50 p-4 rounded-[20px] border border-white/5 focus-within:border-cyan-500/30 hover:border-white/10 transition-all duration-200"
+                >
+                  <div className="flex justify-between items-center mb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[10px] font-mono text-slate-700 font-bold w-7 text-right">#{i + 1}</span>
+                      <span className="text-[10px] font-mono bg-slate-900/80 px-2.5 py-1 rounded-lg border border-white/5 text-slate-500">
+                        {new Date(node.data.start).toISOString().substring(11, 23).replace('.', ',')} &rarr; {new Date(node.data.end).toISOString().substring(11, 23).replace('.', ',')}
                       </span>
                     </div>
-                    <button 
+                    <button
                       onClick={() => deleteNode(nodes.indexOf(node))}
-                      className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
-                      title="Delete this line"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
-                  <textarea 
-                    className="w-full bg-transparent border-none focus:ring-0 text-slate-200 text-base leading-relaxed p-0 resize-none font-medium custom-scrollbar"
-                    rows={2}
+                  <textarea
+                    className="w-full bg-transparent border-none focus:ring-0 text-slate-200 text-sm leading-relaxed p-0 resize-none font-medium outline-none custom-scrollbar"
+                    rows={node.data.text.split('\n').length || 1}
                     value={node.data.text}
                     spellCheck="false"
                     onChange={(e) => {
-                      const updatedNodes = [...nodes];
-                      updatedNodes[updatedNodes.indexOf(node)].data.text = e.target.value;
-                      setNodes(updatedNodes);
+                      const updated = [...nodes];
+                      updated[nodes.indexOf(node)] = {
+                        ...node,
+                        data: { ...node.data, text: e.target.value }
+                      };
+                      setNodes(updated);
                     }}
                   />
                 </div>
               ))}
-              
+
               {nodes.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-slate-800 space-y-4">
-                  <div className="w-20 h-20 border-4 border-slate-800 border-dashed rounded-full flex items-center justify-center animate-spin-slow">
-                    <AlertCircle size={32} />
+                <div className="h-full min-h-[50vh] flex flex-col items-center justify-center gap-4">
+                  <div className="w-16 h-16 border-2 border-dashed border-slate-800 rounded-full flex items-center justify-center animate-spin-slow">
+                    <AlertCircle size={24} className="text-slate-700" />
                   </div>
-                  <p className="text-xs font-bold uppercase tracking-[0.3em] opacity-30">No Data Imported</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-700">No SRT Imported</p>
                 </div>
               )}
             </div>
@@ -270,4 +295,4 @@ export default function EditPage() {
       </div>
     </div>
   );
-                  }
+}
