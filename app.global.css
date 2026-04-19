@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App တစ်ခုလုံးအတွက် Dark Theme */
+body {
+  background-color: #020617;
+  color: white;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Scrollbar ကို ပိုလှအောင် (Optional) */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
