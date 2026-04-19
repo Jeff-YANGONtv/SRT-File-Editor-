@@ -8,14 +8,18 @@ export default function LoginPage() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
+    // အရင်ရှိနေတဲ့ widget အဟောင်းကို အမြဲရှင်းထုတ်ပေးပါ
     if (loginRef.current) {
       loginRef.current.innerHTML = "";
     }
 
     const script = document.createElement('script');
     script.src = "https://telegram.org/js/telegram-widget.js?22";
-    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || "srtfilecollectbot";
-    script.setAttribute('data-telegram-login', srtfilecollectbot);
+    
+    // မှတ်ချက်- @ သင်္ကေတ မပါရပါဘူး။
+    const botUsername = "srtfilecollectbot"; 
+    
+    script.setAttribute('data-telegram-login', botUsername);
     script.setAttribute('data-size', 'large');
     script.setAttribute('data-radius', '14');
     script.setAttribute('data-onauth', 'onTelegramAuth(user)');
@@ -23,9 +27,11 @@ export default function LoginPage() {
 
     if (loginRef.current) {
       loginRef.current.appendChild(script);
-      setTimeout(() => setIsLoaded(true), 300);
+      // Widget ပေါ်လာဖို့ ခဏစောင့်ပြီးမှ Opacity ပေးမယ်
+      setTimeout(() => setIsLoaded(true), 500);
     }
 
+    // Auth callback function
     (window as any).onTelegramAuth = (user: any) => {
       localStorage.setItem('user', JSON.stringify(user));
       window.location.href = '/edit';
@@ -39,11 +45,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden">
 
+      {/* Background Glows */}
       <div className="absolute top-[-5%] left-[-5%] w-[500px] h-[500px] bg-cyan-900/15 rounded-full blur-[130px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-blue-900/10 rounded-full blur-[130px] pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
-
         <div className="bg-slate-900/50 backdrop-blur-2xl p-8 rounded-[40px] border border-white/6 shadow-2xl shadow-black/60 space-y-7">
 
           <div className="text-center space-y-4">
@@ -70,7 +76,8 @@ export default function LoginPage() {
 
           <div className="h-px w-full bg-gradient-to-r from-transparent via-white/8 to-transparent" />
 
-          <div className="flex flex-col items-center gap-5 py-2">
+          {/* Telegram Login Button Container */}
+          <div className="flex flex-col items-center gap-5 py-2 min-h-[60px]">
             <div
               ref={loginRef}
               className={`transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
