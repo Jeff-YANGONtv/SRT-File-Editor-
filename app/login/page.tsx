@@ -16,19 +16,26 @@ export default function LoginPage() {
     const script = document.createElement('script');
     script.src = "https://telegram.org/js/telegram-widget.js?22";
     
-    // မှတ်ချက်- @ သင်္ကေတ မပါရပါဘူး။
     const botUsername = "srtfilecollectbot"; 
     
     script.setAttribute('data-telegram-login', botUsername);
     script.setAttribute('data-size', 'large');
     script.setAttribute('data-radius', '14');
+    
+    // Approval ကျလာစေဖို့အတွက် callback အပြင် auth-url ကိုပါ တွဲသုံးပါမယ်
+    // အောက်က URL သည် အစ်ကို့ Vercel URL ဖြစ်ရပါမယ်
+    script.setAttribute('data-auth-url', "https://srt-file-editor-tugh.vercel.app/edit");
+    
+    // Bot ထံမှ message ပို့ခွင့်တောင်းဆိုခြင်း (ဒါပါမှ Approval ပိုကျလွယ်ပါတယ်)
+    script.setAttribute('data-request-access', 'write');
+    
     script.setAttribute('data-onauth', 'onTelegramAuth(user)');
     script.async = true;
 
     if (loginRef.current) {
       loginRef.current.appendChild(script);
       // Widget ပေါ်လာဖို့ ခဏစောင့်ပြီးမှ Opacity ပေးမယ်
-      setTimeout(() => setIsLoaded(true), 500);
+      setTimeout(() => setIsLoaded(true), 600);
     }
 
     // Auth callback function
