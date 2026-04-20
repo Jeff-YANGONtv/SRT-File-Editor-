@@ -12,10 +12,12 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch(process.env.NEXT_PUBLIC_HISTORY_SHEET_URL!);
+        const historyUrl = process.env.NEXT_PUBLIC_HISTORY_SHEET_URL || 'https://script.google.com/macros/s/AKfycbxnyKq13bo_DhOsy1k-aEVOsT_9Czv57CjjTFTfhi4G_LEI_dbZ9Ho0irzDKmkQjEzsJA/exec';
+        const res = await fetch(historyUrl);
         const data = await res.json();
         setHistory(data.reverse());
-      } catch {
+      } catch (error) {
+        console.error('Failed to fetch history:', error);
       } finally {
         setLoading(false);
       }

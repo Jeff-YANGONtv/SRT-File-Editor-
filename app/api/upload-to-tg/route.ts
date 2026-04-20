@@ -5,11 +5,11 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_DB_CHANNEL_ID;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || '8586010366:AAGujpSKgr8OHJQNAwWpCv6SvIkQaBaBRt0';
+    const chatId = process.env.TELEGRAM_DB_CHANNEL_ID || '1003755766987';
 
-    if (!file || !botToken || !chatId) {
-      return NextResponse.json({ error: 'Missing Credentials' }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     // Standard Fetch API ကို သုံးတာက Serverless မှာ ပိုပြီး Error ကင်းပါတယ်
@@ -31,7 +31,6 @@ export async function POST(req: Request) {
       throw new Error(result.description || "Telegram API Error");
     }
 
-    // Google Sheet မှာ မှတ်တမ်းတင်ဖို့ message_id ကိုပါ ပြန်ပေးလိုက်မယ်
     return NextResponse.json({ 
       success: true, 
       file_id: result.result.document.file_id,
@@ -40,6 +39,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Upload Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 });
   }
 }

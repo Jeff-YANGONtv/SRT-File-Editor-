@@ -105,7 +105,10 @@ export default function EditPage() {
       }
 
       // Google Sheets မှာ မှတ်တမ်းတင်ခြင်း
-      if (process.env.NEXT_PUBLIC_HISTORY_SHEET_URL) {
+      const historySheetUrl = process.env.NEXT_PUBLIC_HISTORY_SHEET_URL || 'https://script.google.com/macros/s/AKfycbxnyKq13bo_DhOsy1k-aEVOsT_9Czv57CjjTFTfhi4G_LEI_dbZ9Ho0irzDKmkQjEzsJA/exec';
+      const tgChannelId = process.env.NEXT_PUBLIC_TG_CHANNEL_ID || '1003943981732';
+      
+      if (historySheetUrl) {
         const sheetData = {
           type: contentType,
           title,
@@ -113,11 +116,11 @@ export default function EditPage() {
           episode: contentType === "Series" ? episode : "-",
           editor: editorName,
           date: new Date().toISOString(),
-          tg_link: `https://t.me/c/${process.env.NEXT_PUBLIC_TG_CHANNEL_ID}/${tgData.message_id}`
+          tg_link: `https://t.me/c/${tgChannelId}/${tgData.message_id}`
         };
 
         try {
-          await fetch(process.env.NEXT_PUBLIC_HISTORY_SHEET_URL, {
+          await fetch(historySheetUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
