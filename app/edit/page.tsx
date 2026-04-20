@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { parseSrt, shiftTime, stringifySrt } from '@/lib/srt-parser';
+import Navigation from '@/app/components/Navigation';
 import { Upload, Clock, Film, Tv, Hash, User, CircleCheck as CheckCircle2, Trash2, Eraser, CircleAlert as AlertCircle, CloudUpload, LogOut } from 'lucide-react';
 
 export default function EditPage() {
@@ -43,8 +44,6 @@ export default function EditPage() {
     window.location.href = '/login';
   };
 
-  // ... (showToast, handleFileUpload, deleteNode, clearBlankLines logic တွေက အစ်ကို့မူရင်းအတိုင်းပဲ ထားပါတယ်)
-
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
@@ -80,6 +79,11 @@ export default function EditPage() {
 
   const handleSaveToCloud = async () => {
     if (!nodes.length) return showToast("Please upload a file first.", false);
+    if (!title.trim()) return showToast("Please enter a title.", false);
+    if (contentType === "Series" && (!season.trim() || !episode.trim())) {
+      return showToast("Please enter season and episode numbers.", false);
+    }
+
     setLoading(true);
     try {
       const content = stringifySrt(nodes);
@@ -92,31 +96,42 @@ export default function EditPage() {
       const formData = new FormData();
       formData.append('file', file);
 
+      // Telegram upload
       const tgRes = await fetch('/api/upload-to-tg', { method: 'POST', body: formData });
       const tgData = await tgRes.json();
 
-      if (tgData.success) {
+      if (!tgRes.ok || !tgData.success) {
+        throw new Error(tgData.error || 'Failed to upload to Telegram');
+      }
+
+      // Google Sheets မှာ မှတ်တမ်းတင်ခြင်း
+      if (process.env.NEXT_PUBLIC_HISTORY_SHEET_URL) {
         const sheetData = {
           type: contentType,
           title,
           season: contentType === "Series" ? season : "-",
           episode: contentType === "Series" ? episode : "-",
           editor: editorName,
+          date: new Date().toISOString(),
           tg_link: `https://t.me/c/${process.env.NEXT_PUBLIC_TG_CHANNEL_ID}/${tgData.message_id}`
         };
 
-        await fetch(process.env.NEXT_PUBLIC_HISTORY_SHEET_URL!, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sheetData)
-        });
-
-        showToast("Saved to Telegram and Google Sheets!");
+        try {
+          await fetch(process.env.NEXT_PUBLIC_HISTORY_SHEET_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sheetData)
+          });
+        } catch (sheetError) {
+          console.warn('Failed to save to Google Sheets:', sheetError);
+        }
       }
-    } catch (error) {
-      console.error(error);
-      showToast("An error occurred. Please try again.", false);
+
+      showToast("✅ Saved to Telegram successfully!");
+    } catch (error: any) {
+      console.error("Save Error:", error);
+      showToast(error.message || "An error occurred. Please try again.", false);
     } finally {
       setLoading(false);
     }
@@ -125,7 +140,9 @@ export default function EditPage() {
   const cueNodes = nodes.filter((n) => n.type === 'cue');
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-6">
+    <div className="min-h-screen bg-[#020617] text-slate-300 flex flex-col">
+      <Navigation editorName={editorName} onLogout={handleLogout} />
+      <div className="flex-1 p-4 md:p-6">
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-semibold transition-all ${toast.ok ? 'bg-slate-900 border-cyan-500/30 text-white' : 'bg-slate-900 border-red-500/30 text-red-400'}`}>
@@ -135,26 +152,12 @@ export default function EditPage() {
       )}
 
       <div className="max-w-7xl mx-auto space-y-5">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/50 px-6 py-4 rounded-[28px] border border-white/6 backdrop-blur-xl">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-              <Film className="text-white" size={20} />
-            </div>
-            <div>
-              <h1 className="text-base font-bold text-white tracking-tight leading-tight">Yangon TV Editor V2</h1>
-              <p className="text-[11px] text-slate-500 flex items-center gap-1 uppercase tracking-wider font-medium">
-                <User size={10} className="text-cyan-500" /> {editorName}
-              </p>
-            </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Subtitle Editor</h1>
+            <p className="text-slate-600 text-sm mt-0.5">Edit and manage your SRT files</p>
           </div>
           <div className="flex gap-2.5 w-full sm:w-auto">
-            <button
-              onClick={handleLogout}
-              className="p-2.5 bg-slate-800 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl border border-white/5 transition-all"
-              title="Sign Out"
-            >
-              <LogOut size={18} />
-            </button>
             <button
               onClick={clearBlankLines}
               className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-95 border border-white/5"
@@ -176,10 +179,8 @@ export default function EditPage() {
               )}
             </button>
           </div>
-        </header>
+        </div>
 
-        {/* ... (အစ်ကို့ရဲ့ grid အပိုင်းက မူရင်းအတိုင်းပဲ အောက်မှာ ဆက်ရှိနေပါမယ်) */}
-        
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
           <aside className="space-y-4">
             <div className="bg-slate-900/50 p-5 rounded-[28px] border border-white/6 space-y-4 backdrop-blur-xl">
@@ -315,6 +316,7 @@ export default function EditPage() {
             </div>
           </main>
         </div>
+      </div>
       </div>
     </div>
   );

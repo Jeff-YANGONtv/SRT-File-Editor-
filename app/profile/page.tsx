@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Navigation from '@/app/components/Navigation';
 import { LogOut, ShieldCheck, Hash, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -17,6 +18,12 @@ export default function ProfilePage() {
     window.location.href = '/login';
   };
 
+  const handleNavigationLogout = () => {
+    localStorage.removeItem('telegram_session');
+    localStorage.removeItem('telegram_user');
+    window.location.href = '/login';
+  };
+
   if (!user) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <span className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
@@ -24,7 +31,9 @@ export default function ProfilePage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-[#020617] flex flex-col">
+      <Navigation editorName={user.first_name || user.username || "STAFF"} onLogout={handleNavigationLogout} />
+      <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[400px] bg-cyan-500/4 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10 space-y-4">
@@ -79,6 +88,7 @@ export default function ProfilePage() {
             <LogOut size={16} /> Sign Out
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

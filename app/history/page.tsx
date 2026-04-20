@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Navigation from '@/app/components/Navigation';
 import { Calendar, Film, Tv, User, ExternalLink, Search, Clock } from 'lucide-react';
 
 export default function HistoryPage() {
@@ -27,7 +28,9 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-8">
+    <div className="min-h-screen bg-[#020617] text-slate-300 flex flex-col">
+      <Navigation />
+      <div className="flex-1 p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-7">
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
@@ -99,6 +102,7 @@ export default function HistoryPage() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
