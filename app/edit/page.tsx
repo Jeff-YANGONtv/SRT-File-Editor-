@@ -2,11 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { parseSrt, shiftTime, stringifySrt } from '@/lib/srt-parser';
-import { supabase } from '@/lib/supabase'; // Supabase client ကို import လုပ်ပါ
-import {
-  Upload, Clock, Film, Tv, Hash, User,
-  CheckCircle2, Trash2, Eraser, AlertCircle, CloudUpload, LogOut
-} from 'lucide-react';
+import { Upload, Clock, Film, Tv, Hash, User, CircleCheck as CheckCircle2, Trash2, Eraser, CircleAlert as AlertCircle, CloudUpload, LogOut } from 'lucide-react';
 
 export default function EditPage() {
   const [nodes, setNodes] = useState<any[]>([]);
@@ -22,15 +18,19 @@ export default function EditPage() {
   const [editorName, setEditorName] = useState("Editor");
 
   useEffect(() => {
-    // Supabase ကနေ လက်ရှိဝင်ထားတဲ့ User ကို စစ်ဆေးမယ်
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Email ရဲ့ ရှေ့ပိုင်းကို နာမည်အဖြစ် သုံးမယ် (ဥပမာ- zin.ko -> ZIN KO)
-        const name = user.email?.split('@')[0].toUpperCase().replace('.', ' ') || "STAFF";
-        setEditorName(name);
+    const checkUser = () => {
+      const telegramSession = localStorage.getItem('telegram_session');
+      const telegramUser = localStorage.getItem('telegram_user');
+
+      if (telegramSession && telegramUser) {
+        try {
+          const user = JSON.parse(telegramUser);
+          const name = user.first_name || user.username || "STAFF";
+          setEditorName(name.toUpperCase());
+        } catch {
+          window.location.href = '/login';
+        }
       } else {
-        // User မရှိရင် Login ကို ပြန်ပို့မယ်
         window.location.href = '/login';
       }
     };
@@ -38,8 +38,8 @@ export default function EditPage() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem('user');
+    localStorage.removeItem('telegram_session');
+    localStorage.removeItem('telegram_user');
     window.location.href = '/login';
   };
 
