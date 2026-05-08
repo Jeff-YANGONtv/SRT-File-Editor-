@@ -1,0 +1,11 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/telegram-login/route": "app/api/telegram-login/route.js",
+  "/api/upload-to-tg/route": "app/api/upload-to-tg/route.js",
+  "/edit/page": "app/edit/page.js",
+  "/history/page": "app/history/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/profile/page": "app/profile/page.js"
+}

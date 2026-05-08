@@ -21,6 +21,14 @@ export const shiftTime = (nodes: NodeList, ms: number): NodeList => {
   });
 };
 
+export const formatTimestamp = (ms: number): string => {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const milliseconds = Math.floor(ms % 1000);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+};
+
 export const stringifySrt = (nodes: NodeList): string => {
   return stringifySync(nodes, { format: 'SRT' });
 };

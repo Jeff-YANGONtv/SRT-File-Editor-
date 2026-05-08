@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { parseSrt, shiftTime, stringifySrt } from '@/lib/srt-parser';
+import React, { useState, useEffect, useRef } from 'react';
+import { parseSrt, shiftTime, stringifySrt, formatTimestamp } from '@/lib/srt-parser';
 import Navigation from '@/app/components/Navigation';
-import { Upload, Clock, Film, Tv, Hash, User, CircleCheck as CheckCircle2, Trash2, Eraser, CircleAlert as AlertCircle, CloudUpload, LogOut } from 'lucide-react';
+import MXPlayer from '@/app/components/MXPlayer';
+import { Upload, Clock, Film, Tv, Hash, CircleCheck as CheckCircle2, Trash2, Eraser, CloudUpload, Music } from 'lucide-react';
+import WaveSurfer from 'wavesurfer.js';
 
 export default function EditPage() {
   const [nodes, setNodes] = useState<any[]>([]);
   const [offset, setOffset] = useState(0);
   const [fileName, setFileName] = useState("");
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaName, setMediaName] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
@@ -17,6 +21,10 @@ export default function EditPage() {
   const [season, setSeason] = useState("");
   const [episode, setEpisode] = useState("");
   const [editorName, setEditorName] = useState("Editor");
+
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const wavesurfer = useRef<WaveSurfer | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
     const checkUser = () => {
@@ -36,13 +44,28 @@ export default function EditPage() {
       }
     };
     checkUser();
-  }, []);
 
-  const handleLogout = async () => {
-    localStorage.removeItem('telegram_session');
-    localStorage.removeItem('telegram_user');
-    window.location.href = '/login';
-  };
+    if (waveformRef.current && !wavesurfer.current) {
+      wavesurfer.current = WaveSurfer.create({
+        container: waveformRef.current,
+        waveColor: '#1e293b',
+        progressColor: '#06b6d4',
+        cursorColor: '#06b6d4',
+        barWidth: 2,
+        barRadius: 3,
+        height: 50,
+        normalize: true,
+        interact: true,
+      });
+    }
+
+    return () => {
+      if (wavesurfer.current) {
+        wavesurfer.current.destroy();
+        wavesurfer.current = null;
+      }
+    };
+  }, []);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -63,6 +86,22 @@ export default function EditPage() {
     }
   };
 
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMediaName(file.name);
+      const url = URL.createObjectURL(file);
+      setMediaUrl(url);
+      if (wavesurfer.current) {
+        wavesurfer.current.load(url);
+      }
+    }
+  };
+
+  const handleTimeUpdate = (time: number) => {
+    setCurrentTime(time);
+  };
+
   const deleteNode = (index: number) => {
     const updated = [...nodes];
     updated.splice(index, 1);
@@ -75,6 +114,26 @@ export default function EditPage() {
     );
     setNodes(filtered);
     showToast("Blank lines cleared.");
+  };
+
+  const setStartTime = (index: number) => {
+    const updated = [...nodes];
+    const nodeIndex = nodes.indexOf(cueNodes[index]);
+    updated[nodeIndex] = {
+      ...updated[nodeIndex],
+      data: { ...updated[nodeIndex].data, start: Math.floor(currentTime) }
+    };
+    setNodes(updated);
+  };
+
+  const setEndTime = (index: number) => {
+    const updated = [...nodes];
+    const nodeIndex = nodes.indexOf(cueNodes[index]);
+    updated[nodeIndex] = {
+      ...updated[nodeIndex],
+      data: { ...updated[nodeIndex].data, end: Math.floor(currentTime) }
+    };
+    setNodes(updated);
   };
 
   const handleSaveToCloud = async () => {
@@ -96,7 +155,6 @@ export default function EditPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Telegram upload
       const tgRes = await fetch('/api/upload-to-tg', { method: 'POST', body: formData });
       const tgData = await tgRes.json();
 
@@ -104,37 +162,9 @@ export default function EditPage() {
         throw new Error(tgData.error || 'Failed to upload to Telegram');
       }
 
-      // Google Sheets မှာ မှတ်တမ်းတင်ခြင်း
-      const historySheetUrl = process.env.NEXT_PUBLIC_HISTORY_SHEET_URL || 'https://script.google.com/macros/s/AKfycbxnyKq13bo_DhOsy1k-aEVOsT_9Czv57CjjTFTfhi4G_LEI_dbZ9Ho0irzDKmkQjEzsJA/exec';
-      const tgChannelId = process.env.NEXT_PUBLIC_TG_CHANNEL_ID || '1003943981732';
-      
-      if (historySheetUrl) {
-        const sheetData = {
-          type: contentType,
-          title,
-          season: contentType === "Series" ? season : "-",
-          episode: contentType === "Series" ? episode : "-",
-          editor: editorName,
-          date: new Date().toISOString(),
-          tg_link: `https://t.me/c/${tgChannelId}/${tgData.message_id}`
-        };
-
-        try {
-          await fetch(historySheetUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sheetData)
-          });
-        } catch (sheetError) {
-          console.warn('Failed to save to Google Sheets:', sheetError);
-        }
-      }
-
-      showToast("✅ Saved to Telegram successfully!");
+      showToast("✅ Saved successfully!");
     } catch (error: any) {
-      console.error("Save Error:", error);
-      showToast(error.message || "An error occurred. Please try again.", false);
+      showToast(error.message || "An error occurred", false);
     } finally {
       setLoading(false);
     }
@@ -143,183 +173,127 @@ export default function EditPage() {
   const cueNodes = nodes.filter((n) => n.type === 'cue');
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-300 flex flex-col">
-      <Navigation editorName={editorName} onLogout={handleLogout} />
-      <div className="flex-1 p-4 md:p-6">
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-semibold transition-all ${toast.ok ? 'bg-slate-900 border-cyan-500/30 text-white' : 'bg-slate-900 border-red-500/30 text-red-400'}`}>
-          <span className={`w-2 h-2 rounded-full ${toast.ok ? 'bg-cyan-400' : 'bg-red-400'}`} />
-          {toast.msg}
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto space-y-5">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Subtitle Editor</h1>
-            <p className="text-slate-600 text-sm mt-0.5">Edit and manage your SRT files</p>
+    <div className="min-h-screen bg-[#020617] text-slate-300 flex flex-col font-sans selection:bg-cyan-500/30">
+      <Navigation editorName={editorName} onLogout={() => {}} />
+      
+      <div className="flex-1 p-4 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6">
+        {toast && (
+          <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4">
+            <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-xl ${toast.ok ? 'bg-slate-900/90 border-cyan-500/30 text-white' : 'bg-slate-900/90 border-red-500/30 text-red-400'}`}>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${toast.ok ? 'bg-cyan-400' : 'bg-red-400'}`} />
+              <span className="text-sm font-bold tracking-wide">{toast.msg}</span>
+            </div>
           </div>
-          <div className="flex gap-2.5 w-full sm:w-auto">
-            <button
-              onClick={clearBlankLines}
-              className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-95 border border-white/5"
-            >
-              <Eraser size={16} /> <span className="hidden sm:inline">Clear Blanks</span>
-            </button>
-            <button
-              onClick={handleSaveToCloud}
-              disabled={loading}
-              className="flex-[2] sm:flex-none bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 disabled:text-slate-500 text-white px-7 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all active:scale-95 shadow-lg shadow-cyan-500/20"
-            >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <><CloudUpload size={16} /> Save to Cloud</>
-              )}
-            </button>
-          </div>
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-          <aside className="space-y-4">
-            <div className="bg-slate-900/50 p-5 rounded-[28px] border border-white/6 space-y-4 backdrop-blur-xl">
-              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">Project Details</p>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Column: Video & Waveform */}
+          <div className="flex-1 space-y-6">
+            {/* MX Player */}
+            <MXPlayer url={mediaUrl} onTimeUpdate={handleTimeUpdate} />
 
-              <div className="flex bg-slate-950 p-1 rounded-2xl border border-white/5">
-                <button
-                  onClick={() => setContentType("Movie")}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${contentType === "Movie" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-500 hover:text-white"}`}
-                >
-                  <Film size={13} /> MOVIE
-                </button>
-                <button
-                  onClick={() => setContentType("Series")}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${contentType === "Series" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-500 hover:text-white"}`}
-                >
-                  <Tv size={13} /> SERIES
-                </button>
+            {/* Waveform */}
+            {mediaUrl && (
+              <div className="bg-slate-900/40 rounded-[32px] border border-white/5 overflow-hidden backdrop-blur-md p-6 shadow-2xl">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Audio Waveform</p>
+                <div ref={waveformRef} className="w-full bg-slate-950/50 rounded-2xl overflow-hidden border border-white/5" />
               </div>
+            )}
 
-              <div className="space-y-2.5">
-                <input
-                  placeholder="Title Name"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500/40 outline-none transition"
-                />
-                {contentType === "Series" && (
-                  <div className="flex gap-2">
-                    <input
-                      placeholder="SS"
-                      value={season}
-                      onChange={(e) => setSeason(e.target.value)}
-                      className="w-1/2 bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500/40 outline-none"
-                    />
-                    <input
-                      placeholder="EP"
-                      value={episode}
-                      onChange={(e) => setEpisode(e.target.value)}
-                      className="w-1/2 bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-500/40 outline-none"
-                    />
-                  </div>
-                )}
+            {/* Project Details */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-900/40 p-6 rounded-[28px] border border-white/5 backdrop-blur-md">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Project Type</p>
+                <div className="flex bg-slate-950/50 p-1.5 rounded-2xl border border-white/5">
+                  <button onClick={() => setContentType("Movie")} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${contentType === "Movie" ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20" : "text-slate-500 hover:text-white"}`}>MOVIE</button>
+                  <button onClick={() => setContentType("Series")} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${contentType === "Series" ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20" : "text-slate-500 hover:text-white"}`}>SERIES</button>
+                </div>
               </div>
-
-              <div className="pt-1">
-                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-800 rounded-2xl cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800/20 transition-all group">
-                  <Upload className="text-slate-600 mb-1.5 group-hover:text-cyan-500 transition" size={20} />
-                  <span className="text-[10px] text-slate-600 text-center px-3 font-semibold uppercase tracking-widest leading-relaxed group-hover:text-slate-400 transition">
-                    {fileName || "Upload SRT File"}
-                  </span>
-                  <input type="file" className="hidden" accept=".srt" onChange={handleFileUpload} />
-                </label>
+              <div className="bg-slate-900/40 p-6 rounded-[28px] border border-white/5 backdrop-blur-md">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Time Shift (ms)</p>
+                <div className="flex gap-3">
+                  <input type="number" value={offset} onChange={(e) => setOffset(parseInt(e.target.value) || 0)} className="flex-1 bg-slate-950/50 border border-white/5 rounded-xl px-4 py-3 text-sm text-cyan-400 font-mono focus:border-cyan-500/50 outline-none" />
+                  <button onClick={() => setNodes(shiftTime(nodes, offset))} className="bg-cyan-500 hover:bg-cyan-400 p-3.5 rounded-xl text-white shadow-lg shadow-cyan-500/20 transition-all active:scale-90"><CheckCircle2 size={20} /></button>
+                </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/50 p-5 rounded-[28px] border border-white/6 backdrop-blur-xl">
-              <p className="text-[10px] font-bold text-slate-600 mb-3.5 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Clock size={12} /> Time Shift (ms)
-              </p>
+            {/* Media Upload */}
+            <div className="bg-slate-900/40 p-6 rounded-[28px] border border-white/5 backdrop-blur-md">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Media</p>
+              <label className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-3 rounded-2xl cursor-pointer transition-all text-xs font-black uppercase tracking-widest border border-white/5 shadow-lg w-fit">
+                <Music size={16} /> {mediaName ? "Change Media" : "Load Media"}
+                <input type="file" className="hidden" accept="audio/*,video/*" onChange={handleMediaUpload} />
+              </label>
+            </div>
+          </div>
+
+          {/* Right Column: Subtitle Editor */}
+          <div className="w-full lg:w-[450px] flex flex-col bg-slate-900/40 rounded-[32px] border border-white/5 backdrop-blur-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-white/5 bg-slate-900/20 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/20">
+                  <Hash size={18} className="text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Timeline</p>
+                  <p className="text-sm font-bold text-white">{cueNodes.length} Cues</p>
+                </div>
+              </div>
               <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={offset}
-                  onChange={(e) => setOffset(parseInt(e.target.value) || 0)}
-                  className="w-full bg-slate-950 border border-white/6 rounded-xl px-4 py-2.5 text-sm text-cyan-400 font-mono focus:border-cyan-500/40 outline-none"
-                />
-                <button
-                  onClick={() => setNodes(shiftTime(nodes, offset))}
-                  className="bg-cyan-500 hover:bg-cyan-400 p-2.5 rounded-xl transition-all active:scale-90 text-white shadow-lg shadow-cyan-500/20"
-                >
-                  <CheckCircle2 size={18} />
+                <button onClick={clearBlankLines} className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all border border-white/5"><Eraser size={18} /></button>
+                <button onClick={handleSaveToCloud} disabled={loading} className="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/20 transition-all active:scale-95">
+                  {loading ? "..." : "Save"}
                 </button>
               </div>
             </div>
-          </aside>
 
-          <main className="lg:col-span-3 bg-slate-900/30 rounded-[32px] border border-white/5 h-[78vh] flex flex-col overflow-hidden backdrop-blur-sm">
-            <div className="px-5 py-3.5 border-b border-white/5 bg-slate-900/50 flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Hash size={12} /> Subtitle Timeline
-              </span>
-              <div className="px-3 py-1 bg-cyan-500/10 rounded-full border border-cyan-500/20">
-                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{cueNodes.length} Lines</span>
-              </div>
+            {/* SRT Upload */}
+            <div className="p-6 border-b border-white/5">
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-800 rounded-2xl cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800/20 transition-all group">
+                <Upload className="text-slate-600 mb-1.5 group-hover:text-cyan-500 transition" size={20} />
+                <span className="text-[10px] text-slate-600 text-center px-3 font-semibold uppercase tracking-widest leading-relaxed group-hover:text-slate-400 transition">
+                  {fileName || "Upload SRT File"}
+                </span>
+                <input type="file" className="hidden" accept=".srt" onChange={handleFileUpload} />
+              </label>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
-              {cueNodes.map((node, i) => (
-                <div
-                  key={i}
-                  className="group bg-slate-950/50 p-4 rounded-[20px] border border-white/5 focus-within:border-cyan-500/30 hover:border-white/10 transition-all duration-200"
-                >
-                  <div className="flex justify-between items-center mb-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-[10px] font-mono text-slate-700 font-bold w-7 text-right">#{i + 1}</span>
-                      <span className="text-[10px] font-mono bg-slate-900/80 px-2.5 py-1 rounded-lg border border-white/5 text-slate-500">
-                        {new Date(node.data.start).toISOString().substring(11, 23).replace('.', ',')} &rarr; {new Date(node.data.end).toISOString().substring(11, 23).replace('.', ',')}
-                      </span>
+            {/* Subtitle List */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              {cueNodes.length > 0 ? cueNodes.map((node, i) => (
+                <div key={i} className="group bg-slate-950/40 p-5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all duration-300">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-700 w-6">#{i + 1}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setStartTime(i)} className="text-[10px] font-mono bg-slate-900 px-2.5 py-1.5 rounded-lg border border-white/5 text-slate-500 hover:text-cyan-400 hover:border-cyan-500/30 transition-all">{formatTimestamp(node.data.start)}</button>
+                        <span className="text-slate-800 text-xs">→</span>
+                        <button onClick={() => setEndTime(i)} className="text-[10px] font-mono bg-slate-900 px-2.5 py-1.5 rounded-lg border border-white/5 text-slate-500 hover:text-cyan-400 hover:border-cyan-500/30 transition-all">{formatTimestamp(node.data.end)}</button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => deleteNode(nodes.indexOf(node))}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <button onClick={() => deleteNode(nodes.indexOf(node))} className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={14} /></button>
                   </div>
                   <textarea
-                    className="w-full bg-transparent border-none focus:ring-0 text-slate-200 text-sm leading-relaxed p-0 resize-none font-medium outline-none custom-scrollbar"
+                    className="w-full bg-transparent border-none focus:ring-0 text-slate-200 text-sm leading-relaxed p-0 resize-none font-medium outline-none"
                     rows={node.data.text.split('\n').length || 1}
                     value={node.data.text}
-                    spellCheck="false"
                     onChange={(e) => {
                       const updated = [...nodes];
-                      updated[nodes.indexOf(node)] = {
-                        ...node,
-                        data: { ...node.data, text: e.target.value }
-                      };
+                      updated[nodes.indexOf(node)] = { ...node, data: { ...node.data, text: e.target.value } };
                       setNodes(updated);
                     }}
                   />
                 </div>
-              ))}
-
-              {nodes.length === 0 && (
-                <div className="h-full min-h-[50vh] flex flex-col items-center justify-center gap-4">
-                  <div className="w-16 h-16 border-2 border-dashed border-slate-800 rounded-full flex items-center justify-center animate-spin-slow">
-                    <AlertCircle size={24} className="text-slate-700" />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-700">No SRT Imported</p>
+              )) : (
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-20 py-20">
+                  <Upload size={48} />
+                  <p className="text-xs font-black uppercase tracking-[0.3em]">Import SRT File</p>
                 </div>
               )}
             </div>
-          </main>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

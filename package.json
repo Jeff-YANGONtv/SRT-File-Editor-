@@ -15,7 +15,8 @@
         "next": "latest",
         "react": "latest",
         "react-dom": "latest",
-        "subtitle": "^4.2.1"
+        "subtitle": "^4.2.1",
+        "wavesurfer.js": "^7.12.6"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4.2.2",
