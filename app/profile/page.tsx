@@ -9,18 +9,22 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    const telegramUser = localStorage.getItem('telegram_user');
+    if (telegramUser) {
+      try {
+        setUser(JSON.parse(telegramUser));
+      } catch {
+        window.location.href = '/login';
+      }
+    } else {
+      window.location.href = '/login';
+    }
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-  };
-
-  const handleNavigationLogout = () => {
     localStorage.removeItem('telegram_session');
     localStorage.removeItem('telegram_user');
+    localStorage.removeItem('user');
     window.location.href = '/login';
   };
 
@@ -32,7 +36,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#020617] flex flex-col">
-      <Navigation editorName={user.first_name || user.username || "STAFF"} onLogout={handleNavigationLogout} />
+      <Navigation editorName={user?.first_name || user?.username || "STAFF"} onLogout={handleLogout} />
       <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[400px] bg-cyan-500/4 rounded-full blur-[120px] pointer-events-none" />
 
@@ -84,6 +88,7 @@ export default function ProfilePage() {
           <button
             onClick={handleLogout}
             className="w-full bg-red-500/8 hover:bg-red-500 border border-red-500/20 hover:border-transparent text-red-400 hover:text-white py-3.5 rounded-2xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95"
+            title="Sign Out"
           >
             <LogOut size={16} /> Sign Out
           </button>

@@ -8,8 +8,29 @@ export default function HistoryPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editorName, setEditorName] = useState("STAFF");
+
+  const handleLogout = () => {
+    localStorage.removeItem('telegram_session');
+    localStorage.removeItem('telegram_user');
+    window.location.href = '/login';
+  };
 
   useEffect(() => {
+    const telegramUser = localStorage.getItem('telegram_user');
+    if (telegramUser) {
+      try {
+        const user = JSON.parse(telegramUser);
+        setEditorName(user.first_name || user.username || "STAFF");
+      } catch {
+        window.location.href = '/login';
+      }
+    } else {
+      window.location.href = '/login';
+    }
+  }, []);
+
+  useEffect(() {
     const fetchHistory = async () => {
       try {
         const historyUrl = process.env.NEXT_PUBLIC_HISTORY_SHEET_URL || 'https://script.google.com/macros/s/AKfycbxnyKq13bo_DhOsy1k-aEVOsT_9Czv57CjjTFTfhi4G_LEI_dbZ9Ho0irzDKmkQjEzsJA/exec';
@@ -31,7 +52,7 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-300 flex flex-col">
-      <Navigation />
+      <Navigation editorName={editorName} onLogout={handleLogout} />
       <div className="flex-1 p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-7">
 

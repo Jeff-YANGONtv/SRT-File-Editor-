@@ -5,8 +5,8 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     
-    const botToken = process.env.TELEGRAM_BOT_TOKEN || '8586010366:AAGujpSKgr8OHJQNAwWpCv6SvIkQaBaBRt0';
-    const chatId = process.env.TELEGRAM_DB_CHANNEL_ID || '1003755766987';
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || '8331631093:AAEQWLFMpxrmnKul2re4ElunZ0RFavSB_O0';
+    const chatId = process.env.TELEGRAM_DB_CHANNEL_ID || '-1003991587096';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });

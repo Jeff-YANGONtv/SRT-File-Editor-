@@ -136,6 +136,12 @@ export default function EditPage() {
     setNodes(updated);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('telegram_session');
+    localStorage.removeItem('telegram_user');
+    window.location.href = '/login';
+  };
+
   const handleSaveToCloud = async () => {
     if (!nodes.length) return showToast("Please upload a file first.", false);
     if (!title.trim()) return showToast("Please enter a title.", false);
@@ -174,7 +180,7 @@ export default function EditPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-300 flex flex-col font-sans selection:bg-cyan-500/30">
-      <Navigation editorName={editorName} onLogout={() => {}} />
+      <Navigation editorName={editorName} onLogout={handleLogout} />
       
       <div className="flex-1 p-4 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6">
         {toast && (
