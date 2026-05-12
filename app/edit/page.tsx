@@ -225,12 +225,27 @@ export default function EditPage() {
             </div>
 
             {/* Media Upload */}
-            <div className="bg-slate-900/40 p-6 rounded-[28px] border border-white/5 backdrop-blur-md">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Media</p>
-              <label className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-3 rounded-2xl cursor-pointer transition-all text-xs font-black uppercase tracking-widest border border-white/5 shadow-lg w-fit">
-                <Music size={16} /> {mediaName ? "Change Media" : "Load Media"}
-                <input type="file" className="hidden" accept="audio/*,video/*" onChange={handleMediaUpload} />
-              </label>
+            <div className="bg-slate-900/40 p-6 rounded-[28px] border border-white/5 backdrop-blur-md relative z-30">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Media Source</p>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-3 bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-4 rounded-2xl cursor-pointer transition-all text-xs font-black uppercase tracking-widest border border-cyan-500/30 shadow-xl shadow-cyan-900/20 active:scale-95 group">
+                  <Film size={18} className="group-hover:scale-110 transition-transform" /> 
+                  {mediaName ? "Change Video" : "Upload Video"}
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="video/*,audio/*" 
+                    onChange={handleMediaUpload}
+                    onClick={(e) => (e.target as any).value = null}
+                  />
+                </label>
+                {mediaName && (
+                  <div className="flex items-center gap-3 px-4 py-2 bg-slate-950/50 rounded-xl border border-white/5">
+                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-slate-400 truncate max-w-[200px]">{mediaName}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
